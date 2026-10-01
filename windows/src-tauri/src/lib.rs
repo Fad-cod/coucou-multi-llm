@@ -249,8 +249,23 @@ async fn chat_send(
     query: String,
     context: Option<ChatContext>,
 ) -> Result<ChatReply, String> {
-    let model = shared.settings.lock().unwrap().model.clone();
-    claude::send(&chat, &model, query, context).await
+    let (provider, model, base) = {
+        let s = shared.settings.lock().unwrap();
+        (
+            s.chat_provider.clone(),
+            s.model.clone(),
+            s.openai_base_url.clone(),
+        )
+    };
+    match provider.as_str() {
+        "openai-compatible" => {
+            let key = secrets::get("openai-api-key")
+                .ok_or_else(|| "API key missing. Open settings.".to_string())?;
+            openai::send(&chat, &base, &key, &model, query, context).await
+        }
+        "anthropic" => claude::send(&chat, &model, query, context).await,
+        other => Err(format!("Unknown chat provider '{other}'. Open settings.")),
+    }
 }
 
 #[tauri::command]
