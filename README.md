@@ -1,5 +1,7 @@
 <div align="center">
 
+> **coucou-multi-llm** — Coucou with multi-LLM support: OpenAI, OpenRouter, Ollama, Claude, and more. Base = `Louis-CFM/coucou` + PR #30 (OpenAI-compatible). Windows-only for now, no Linux install.
+
 <img src="NotchBuddy/Assets.xcassets/AppIcon.appiconset/icon_256x256.png" width="96" alt="Coucou icon">
 
 # Coucou
