@@ -9,7 +9,7 @@ pub const DEFAULT_BASE_URL: &str = "https://api.openai.com/v1";
 
 /// Server-side extras (web_search tool, file parts, file-parser) only exist
 /// on OpenRouter; any other backend would reject them.
-fn is_openrouter(base_url: &str) -> bool {
+pub(crate) fn is_openrouter(base_url: &str) -> bool {
     base_url.to_lowercase().contains("openrouter.ai")
 }
 
@@ -112,6 +112,7 @@ pub async fn send(
     model: &str,
     query: String,
     context: Option<crate::claude::ChatContext>,
+    web_search: bool,
 ) -> Result<crate::claude::ChatReply, String> {
     use crate::claude::{ChatContext, SYSTEM_PROMPT};
 
@@ -142,7 +143,13 @@ pub async fn send(
     chat.push(json!({ "role": "user", "content": parts }));
 
     let plugins = if used_file { vec![file_parser_plugin()] } else { vec![] };
-    let body = body_full(model, SYSTEM_PROMPT, &chat.snapshot(), plugins, false);
+    let body = body_full(
+        model,
+        SYSTEM_PROMPT,
+        &chat.snapshot(),
+        plugins,
+        web_search,
+    );
     let response = match call(base_url, key, &body).await {
         Ok(v) => v,
         Err(err) => {
@@ -272,6 +279,17 @@ mod tests {
         assert_eq!(b["model"], "gpt-5.4-mini");
         assert_eq!(b["system"], "sys");
         assert_eq!(b["messages"], json!([{"role": "user"}]));
+    }
+
+    #[test]
+    fn web_tool_injected_only_when_asked() {
+        let on = body_full("m", "s", &[], vec![], true);
+        assert_eq!(
+            on["tools"],
+            json!([{"type": "openrouter:web_search", "parameters": {"max_results": 5}}])
+        );
+        let off = body_full("m", "s", &[], vec![], false);
+        assert_eq!(off["tools"], json!([]));
     }
 
     #[test]

@@ -26,6 +26,9 @@ pub struct Settings {
     /// Base URL for the OpenAI-compatible provider; plain (non-secret) setting.
     #[serde(default = "default_base_url")]
     pub openai_base_url: String,
+    /// Opt-in web search for the OpenAI-compatible provider (spends credits).
+    #[serde(default)]
+    pub web_search: bool,
 }
 
 fn default_provider() -> String {
@@ -59,6 +62,7 @@ impl Default for Settings {
             model: default_model(),
             chat_provider: default_provider(),
             openai_base_url: default_base_url(),
+            web_search: false,
         }
     }
 }
@@ -116,5 +120,6 @@ mod tests {
         assert_eq!(s.model, "claude-opus-5");
         assert_eq!(s.chat_provider, "anthropic");
         assert_eq!(s.openai_base_url, crate::openai::DEFAULT_BASE_URL);
+        assert!(!s.web_search);
     }
 }
