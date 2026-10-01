@@ -88,6 +88,27 @@ pub async fn send(
     query: String,
     context: Option<ChatContext>,
 ) -> Result<ChatReply, String> {
+    send_to(chat, ENDPOINT, model, query, context).await
+}
+
+/// Same contract against any Anthropic-Messages-compatible endpoint
+/// (official API, OpenRouter `/api/v1/messages`, LiteLLM passthrough…).
+/// Server-side extras (fallback beta, web search) stay official-only:
+/// custom gateways don't know them.
+pub async fn send_to(
+    chat: &Chat,
+    endpoint: &str,
+    model: &str,
+    query: String,
+    context: Option<ChatContext>,
+) -> Result<ChatReply, String> {
+    // Provider-scoped history: never let one wire format read another's.
+    chat.ensure_provider(if endpoint == ENDPOINT {
+        "anthropic"
+    } else {
+        "anthropic-compatible"
+    });
+
     let key = secrets::get("anthropic-api-key")
         .ok_or_else(|| "API key missing. Open settings.".to_string())?;
 
@@ -117,16 +138,20 @@ pub async fn send(
 
     chat.push(json!({ "role": "user", "content": content }));
 
-    let body = json!({
+    let official = endpoint == ENDPOINT;
+    let mut body = json!({
         "model": model,
         "max_tokens": MAX_TOKENS,
         "system": SYSTEM_PROMPT,
-        "tools": [{ "type": "web_search_20260209", "name": "web_search", "max_uses": 5 }],
-        "fallbacks": "default",
         "messages": chat.snapshot(),
     });
+    if official {
+        // Server-side extras only the official API knows.
+        body["tools"] = json!([{ "type": "web_search_20260209", "name": "web_search", "max_uses": 5 }]);
+        body["fallbacks"] = json!("default");
+    }
 
-    let response = match call(&key, &body).await {
+    let response = match call(&key, endpoint, &body).await {
         Ok(v) => v,
         Err(err) => {
             chat.pop(); // keep the history consistent with what the model saw
@@ -169,19 +194,22 @@ pub async fn send(
     Ok(ChatReply { text })
 }
 
-async fn call(key: &str, body: &Value) -> Result<Value, String> {
+async fn call(key: &str, endpoint: &str, body: &Value) -> Result<Value, String> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(90))
         .build()
         .map_err(|e| e.to_string())?;
 
-    let response = client
-        .post(ENDPOINT)
+    let mut request = client
+        .post(endpoint)
         .header("x-api-key", key)
         .header("anthropic-version", ANTHROPIC_VERSION)
-        .header("anthropic-beta", FALLBACK_BETA)
         .header("content-type", "application/json")
-        .json(body)
+        .json(body);
+    if endpoint == ENDPOINT {
+        request = request.header("anthropic-beta", FALLBACK_BETA);
+    }
+    let response = request
         .send()
         .await
         .map_err(|e| format!("Network error: {e}"))?;

@@ -249,12 +249,13 @@ async fn chat_send(
     query: String,
     context: Option<ChatContext>,
 ) -> Result<ChatReply, String> {
-    let (provider, model, base, web) = {
+    let (provider, model, base, abase, web) = {
         let s = shared.settings.lock().unwrap();
         (
             s.chat_provider.clone(),
             s.model.clone(),
             s.openai_base_url.clone(),
+            s.anthropic_base_url.clone(),
             s.web_search,
         )
     };
@@ -267,6 +268,9 @@ async fn chat_send(
             openai::send(&chat, &base, &key, &model, query, context, web && openai::is_openrouter(&base)).await
         }
         "anthropic" => claude::send(&chat, &model, query, context).await,
+        "anthropic-compatible" => {
+            claude::send_to(&chat, &abase, &model, query, context).await
+        }
         other => Err(format!("Unknown chat provider '{other}'. Open settings.")),
     }
 }
