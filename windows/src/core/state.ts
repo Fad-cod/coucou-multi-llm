@@ -96,6 +96,8 @@ export interface Settings {
   chatProvider: string;
   /** Base URL for the OpenAI-compatible provider. */
   openaiBaseUrl: string;
+  /** Opt-in web search for the OpenAI-compatible provider (spends credits). */
+  webSearch: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -112,6 +114,7 @@ export const DEFAULT_SETTINGS: Settings = {
   model: "claude-opus-5",
   chatProvider: "anthropic",
   openaiBaseUrl: "https://api.openai.com/v1",
+  webSearch: false,
 };
 
 type Listener = () => void;

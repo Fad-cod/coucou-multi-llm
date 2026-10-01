@@ -381,6 +381,11 @@ function openaiSection(): HTMLElement {
     void save();
   });
 
+  const search = toggle(settings.webSearch === true, (v) => {
+    settings.webSearch = v;
+    void save();
+  });
+
   clearBtn.style.display = "none";
   void refresh();
 
@@ -392,9 +397,11 @@ function openaiSection(): HTMLElement {
     h("div", { class: "row" }, h("label", { text: "Base URL" }), base, presets),
     h("div", { class: "row" }, h("label", { text: "API key" }), field, saveBtn, clearBtn),
     h("div", { class: "row" }, h("label", { text: "Model" }), model),
+    h("div", { class: "row" }, h("label", { text: "Web search" }), search,
+      h("span", { class: "hint", text: "OpenRouter only, spends credits." })),
     h("div", {
       class: "hint",
-      text: "One client covers OpenAI, OpenRouter, Ollama, LiteLLM, LM Studio and vLLM. Web search and PDF-as-document are Anthropic-only and quietly skipped here.",
+      text: "One client covers OpenAI, OpenRouter, Ollama, LiteLLM, LM Studio and vLLM. On OpenRouter you also get web search (opt-in above) and PDF parsing; elsewhere those stay skipped.",
     }),
     feedback,
   );
