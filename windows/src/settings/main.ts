@@ -175,6 +175,7 @@ function claudeSection(status: HookStatus): HTMLElement {
 
 const PROVIDERS: [string, string][] = [
   ["anthropic", "Anthropic (Claude)"],
+  ["anthropic-compatible", "Anthropic-compatible endpoint"],
   ["openai-compatible", "OpenAI-compatible"],
 ];
 
@@ -200,7 +201,9 @@ function apiSection(hasKey: boolean): HTMLElement {
   const body = h("div", {});
   const drawBody = () => {
     clear(body);
-    body.append(settings.chatProvider === "openai-compatible" ? openaiSection() : anthropicSection(hasKey));
+    if (settings.chatProvider === "openai-compatible") body.append(openaiSection());
+    else if (settings.chatProvider === "anthropic-compatible") body.append(anthropicCompatSection());
+    else body.append(anthropicSection(hasKey));
   };
   provider.addEventListener("change", () => {
     settings.chatProvider = provider.value;
@@ -292,6 +295,41 @@ function anthropicSection(hasKey: boolean): HTMLElement {
     h("div", { class: "row" }, h("label", { text: "API key" }), field, saveBtn, clearBtn),
     h("div", { class: "row" }, h("label", { text: "Model" }), model),
     feedback,
+  );
+}
+
+function anthropicCompatSection(): HTMLElement {
+  const base = h("input", {
+    type: "text",
+    value: settings.anthropicBaseUrl,
+    placeholder: "https://…/v1/messages",
+    style: "flex:1 1 auto;min-width:0",
+    autocomplete: "off",
+    spellcheck: "false",
+  }) as HTMLInputElement;
+  base.addEventListener("change", () => {
+    settings.anthropicBaseUrl = base.value.trim() || "https://api.anthropic.com/v1/messages";
+    void save();
+  });
+
+  const model = h("select", {}) as HTMLSelectElement;
+  for (const [id, label] of MODELS) model.append(h("option", { value: id, text: label }));
+  if (!MODELS.some(([id]) => id === settings.model)) {
+    model.append(h("option", { value: settings.model, text: settings.model }));
+  }
+  model.value = settings.model;
+  model.addEventListener("change", () => {
+    settings.model = model.value;
+    void save();
+  });
+
+  return h(
+    "div",
+    {},
+    h("h3", {}, h("span", { text: "Anthropic-compatible endpoint" })),
+    h("div", { class: "hint", text: "Same Messages format, your endpoint: OpenRouter /v1/messages, LiteLLM, gateways. Uses the Anthropic key above. No web search here — official API only." }),
+    h("div", { class: "row" }, h("label", { text: "Endpoint" }), base),
+    h("div", { class: "row" }, h("label", { text: "Model" }), model),
   );
 }
 
