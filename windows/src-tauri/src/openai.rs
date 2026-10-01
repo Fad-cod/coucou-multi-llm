@@ -7,6 +7,33 @@ use crate::claude::MAX_INLINE_TEXT;
 
 pub const DEFAULT_BASE_URL: &str = "https://api.openai.com/v1";
 
+/// Server-side extras (web_search tool, file parts, file-parser) only exist
+/// on OpenRouter; any other backend would reject them.
+fn is_openrouter(base_url: &str) -> bool {
+    base_url.to_lowercase().contains("openrouter.ai")
+}
+
+/// OpenRouter file part for one PDF, or None when it must fall back to
+/// text-inline (wrong ext) or be skipped (over MAX_PDF_BYTES).
+fn pdf_file_part(name: &str, bytes: &[u8]) -> Option<Value> {
+    const MAX_PDF_BYTES: usize = 10_000_000;
+    if !name.to_lowercase().ends_with(".pdf") || bytes.len() > MAX_PDF_BYTES {
+        return None;
+    }
+    Some(json!({
+        "type": "file",
+        "file": {
+            "filename": name,
+            "file_data": format!("data:application/pdf;base64,{}", crate::claude::base64(bytes)),
+        },
+    }))
+}
+
+/// Explicit pdf-text (free) so a scanned PDF never triggers paid OCR silently.
+fn file_parser_plugin() -> Value {
+    json!({ "id": "file-parser", "pdf": { "engine": "pdf-text" } })
+}
+
 pub fn endpoint(base: &str) -> String {
     format!("{}/chat/completions", base.trim_end_matches('/'))
 }
@@ -227,5 +254,19 @@ mod tests {
             r#"{"error": {"message": "bad key"}}"#,
         );
         assert!(e.contains("bad key"), "got: {e}");
+    }
+
+    #[test]
+    fn openrouter_detection_ignores_case_and_path() {
+        assert!(is_openrouter("https://openrouter.ai/api/v1/"));
+        assert!(!is_openrouter("http://localhost:11434/v1"));
+        assert!(!is_openrouter("https://api.openai.com/v1"));
+    }
+
+    #[test]
+    fn pdf_part_uses_file_shape_and_size_guard() {
+        assert!(pdf_file_part("a.pdf", &vec![0u8; 100]).is_some());
+        assert!(pdf_file_part("a.pdf", &vec![0u8; 11_000_000]).is_none());
+        assert!(pdf_file_part("a.txt", &vec![0u8; 100]).is_none());
     }
 }
