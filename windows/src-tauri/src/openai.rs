@@ -282,6 +282,25 @@ mod tests {
     }
 
     #[test]
+    fn pdf_from_disk_becomes_file_part_on_openrouter() {
+        // NOTE: live PDF turns need ≥$0.50 OpenRouter balance (code 402
+        // otherwise), so the wire shape is pinned here and was verified
+        // against the official file-parser docs/examples.
+        let pdf = b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\ntrailer<</Root 1 0 R>>";
+        let path = std::env::temp_dir().join("coucou-shape.pdf");
+        std::fs::write(&path, pdf).unwrap();
+        let (parts, used) = file_parts(&path.to_string_lossy(), true);
+        let _ = std::fs::remove_file(&path);
+        assert!(used);
+        assert_eq!(parts.len(), 1);
+        assert_eq!(parts[0]["type"], "file");
+        assert_eq!(parts[0]["file"]["filename"], "coucou-shape.pdf");
+        assert!(parts[0]["file"]["file_data"]
+            .as_str()
+            .unwrap()
+            .starts_with("data:application/pdf;base64,"));
+    }
+    #[test]
     fn web_tool_injected_only_when_asked() {
         let on = body_full("m", "s", &[], vec![], true);
         assert_eq!(

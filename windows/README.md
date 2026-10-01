@@ -83,8 +83,12 @@ behaves exactly as before; **OpenAI-compatible** uses one client for every
 The model field is free text (`gpt-5.4-mini`, `openai/gpt-4o`, `llama3.1`, …)
 and the provider's own error message is shown when it is wrong. Switching
 providers resets the chat history, since the two wire formats never mix.
-Web search and PDF-as-document are Anthropic-only and quietly skipped on the
-generic path; images and text files work on both.
+
+On OpenRouter you also get the two features that are skipped elsewhere:
+**Web search** (opt-in checkbox, off by default — each search spends a little
+of your OpenRouter credits) and **PDF parsing** via the free `pdf-text`
+engine (scanned-PDF OCR stays off so it can never bill you silently).
+Note: OpenRouter requires at least $0.50 balance for file requests.
 
 Keys live in the **Windows Credential Manager**, never on disk and never in
 the interface — the island can only ask whether a key exists. Same for every
